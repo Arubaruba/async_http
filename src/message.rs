@@ -1,5 +1,3 @@
-
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::str;
 
@@ -7,7 +5,7 @@ use std::str;
 pub struct Message<'a> {
 	/// This will be parsed by the respective message type (request or response)
 	initial_line: &'a str,
-	headers: HashMap<&'a str, &'a str>,
+	headers: HashMap<String, &'a str>,
 }
 
 #[derive(Debug)]
@@ -42,68 +40,55 @@ impl<'a> Message<'a> {
 		}
 	}
 	
-	fn parse_headers(mut headers_text : &'a mut [u8], line_ending_format: LineEndingFormat) -> Result<HashMap<&'a str, &'a str>, ParseError> {
-//		let mut header_fields = headers_text.as_bytes().splitn_mut(2, |b| *b == b'a');
-//
-		let mut headers : HashMap<&'a str, &'a str> = HashMap::new();
-//		
-//		let mut s = "asdf".to_string();
-//		
-//		let mut h = ["a".to_string(), "b".to_string()];
-//		
-//        let vec = vec![1, 2, 3];
-//        let int_slice = &vec[1..2];
+	fn parse_headers(header_text : &'a str, line_ending_format: LineEndingFormat) -> Result<HashMap<String, &'a str>, ParseError> {
+		let header_fields = header_text.split(line_ending_format.line_separator);
+
+		let mut headers : HashMap<String, &'a str> = HashMap::new();
 		
-//		let header_field : &mut str = str::split(&mut s, "a").next().unwrap();
-		
-//		for mut header_field in &mut s.split("a") {
-//			let name_and_value = header_fields.nth(0).unwrap().splitn(2, ":");
-//			let name : &mut str = name_and_value.next().ok_or(ParseError::InvalidHeaders).unwrap();
-//			header_fields.make_ascii_lowercase();
-//			let value = try!(name_and_value.next().ok_or(ParseError::InvalidHeaders));
-//			headers.insert(name.trim(), value.trim());
-//		}
+		for header_field in header_fields {
+			let mut name_and_value = header_field.splitn(2, ":");
+			let name = try!(name_and_value.next().ok_or(ParseError::InvalidHeaders));
+			let value = try!(name_and_value.next().ok_or(ParseError::InvalidHeaders));
+			headers.insert(name.trim().to_lowercase(), value.trim());
+		}
 
 		Ok(headers)
 	}
 
-	pub fn from_buffer(buf: &'a mut [u8]) -> Result<Message<'a>, ParseError> {
-//		// Convert the buffer to string
-//		let message_text : &mut str = try!(str::from_utf8(&mut buf).map_err(ParseError::InvalidEncoding));
-//
-//		let line_ending_format = try!(Message::get_line_endings(message_text));
-//
-//		// Retrieving the Initial Line
-//		let mut split_by_initial_line = message_text.splitn(2, line_ending_format.line_separator);
-//		let initial_line : &mut str = try!(split_by_initial_line.next().ok_or(ParseError::InvalidLineEndings));
-//		
-//		// Parsing Headers
-//		let headers_and_body = try!(split_by_initial_line.next().ok_or(ParseError::InvalidLineEndings));
-//		let mut split_headers_and_body = headers_and_body.splitn(2, line_ending_format.line_separator);
-//		let header_text : &mut str = try!(split_headers_and_body.next().ok_or(ParseError::InvalidLineEndings));
-//		let headers = try!(Message::parse_headers(&mut header_text, line_ending_format));
-//
-//		Ok(Message {initial_line: initial_line, headers: headers})
-		Err(ParseError::InvalidHeaders)
+	pub fn from_buffer(buf: &'a [u8]) -> Result<Message<'a>, ParseError> {
+		// Convert the buffer to string
+		let message_text = try!(str::from_utf8(buf).map_err(ParseError::InvalidEncoding));
+
+		let line_ending_format = try!(Message::get_line_endings(message_text));
+
+		// Retrieving the Initial Line
+		let mut split_by_initial_line = message_text.splitn(2, line_ending_format.line_separator);
+		let initial_line = try!(split_by_initial_line.next().ok_or(ParseError::InvalidLineEndings));
+		
+		// Parsing Headers
+		let headers_and_body = try!(split_by_initial_line.next().ok_or(ParseError::InvalidLineEndings));
+		let mut split_headers_and_body = headers_and_body.splitn(2, line_ending_format.line_separator);
+		let header_text = try!(split_headers_and_body.next().ok_or(ParseError::InvalidLineEndings));
+		let headers = try!(Message::parse_headers(header_text, line_ending_format));
+
+		Ok(Message {initial_line: initial_line, headers: headers})
 	}
 }
 
 #[test]
 fn from_buffer_initial_line() {
-	let mut buf_mut = [0u8; 1000];
 	let buf = b"random info\r\nHost: localhost";
-	let message = Message::from_buffer(&mut buf_mut).unwrap();
+	let message = Message::from_buffer(buf).unwrap();
 	
-	assert_eq!(message.initial_line.to_string(), "random info".to_string());
+	assert_eq!(message.initial_line.to_string(), "random info");
 }
 
 #[test]
 fn from_buffer_headers() {
-	let mut buf_mut = [0u8; 1000];
 	let buf = b"random info\r\nHost: localhost\r\n\r\nbody";
-	let message = Message::from_buffer(&mut buf_mut).unwrap();
+	let message = Message::from_buffer(buf).unwrap();
 	
-	assert_eq!(message.headers.get("host").unwrap().to_string(), "localhost".to_string());
+	assert_eq!(message.headers.get("host").unwrap().to_string(), "localhost");
 }
 
 #[test]

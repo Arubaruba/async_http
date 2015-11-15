@@ -1,0 +1,8 @@
+[package]
+
+name = "async_http"
+version = "0.0.1"
+authors = [ "Your name <you@example.com>" ]
+
+[[bin]]
+name = "async_http"
